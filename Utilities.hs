@@ -18,12 +18,11 @@ type Y 	= Integer
 type M 	= Int
 type D 	= Int
 
-type From 	= (D,M,Y)
-type To 	= (D,M,Y)
+type Date 	= (D,M,Y)
 
 
 
-getDate :: (D,M,Y) -> Day
+getDate :: Date -> Day
 getDate (d,m,y) = fromGregorian y m d
 
 

@@ -1,18 +1,30 @@
 
 
--- Defines the data structure and operations an event contains
+-- Defines the data structure and operations that an event contains
 
 
 
 module Event where
 
 
+import Constraint
 import Utilities
 
 
-data Event =  EvtCourse 		{ title :: Title, registeredStudents :: [Student], from :: From, to :: To, limit :: Limit }
-			| EvtExam			{ title :: Title, registeredStudents :: [Student], from :: From, to :: To, limit :: Limit }
-			| EvtExInterview 	{ title :: Title, registeredStudents :: [Student], from :: From, to :: To, limit :: Limit }
+
+data Cours	 		= Cours 		{ cTitle :: Title, cRegStudents :: [Student], cFrom :: Date, cTo :: Date, cConstraints :: [Constraint] }
+									deriving (Read, Show)
+
+data Exam 			= Exam 			{ exmTitle :: Title, exmRegStudents :: [Student], exmFrom :: Date, exmTo :: Date, exmConstraints :: [Constraint] }
+									deriving (Read, Show)
+
+data ExInterview 	= ExInterview	{ intTitle :: Title, intRegStudents :: [Student], intFrom :: Date, intTo :: Date, intConstraints :: [Constraint] }
+									deriving (Read, Show)
+
+
+data Event =  EvtCourse 		Cours
+			| EvtExam			Exam
+			| EvtExInterview 	ExInterview
 				deriving (Read,Show)
 
 
@@ -22,16 +34,33 @@ data Event =  EvtCourse 		{ title :: Title, registeredStudents :: [Student], fro
 
 
 
-newCourseEvt :: Title -> From -> To -> Limit -> Event
+newCourseEvt :: Title -> Date -> Date -> [Constraint] -> Event
 newCourseEvt [] _ _ _ = error "No title specified"
-newCourseEvt title from to limit = EvtCourse title [] from to limit
+newCourseEvt title from to cs = EvtCourse (Cours title [] from to cs)
 
 
-newExamEvt :: Title -> From -> To -> Limit -> Event
+newExamEvt :: Title -> Date -> Date -> [Constraint] -> Event
 newExamEvt [] _ _ _ = error "No title specified"
-newExamEvt title from to limit = EvtExam title [] from to limit
+newExamEvt title from to cs = EvtExam (Exam title [] from to cs)
 
 
-newExInterviewEvt :: Title -> From -> To -> Limit -> Event
+newExInterviewEvt :: Title -> Date -> Date -> [Constraint] -> Event
 newExInterviewEvt [] _ _ _ = error "No title specified"
-newExInterviewEvt title from to limit = EvtExInterview title [] from to limit
+newExInterviewEvt title from to cs = EvtExInterview (ExInterview title [] from to cs)
+
+
+
+addConstraint :: Event -> Constraint -> Event
+addConstraint (EvtCourse (Cours t s fr to cs)) c 				= EvtCourse (Cours t s fr to (cs++[c]))
+addConstraint (EvtExam (Exam t s fr to cs)) c 					= EvtExam (Exam t s fr to (cs++[c]))
+addConstraint (EvtExInterview (ExInterview t s fr to cs)) c 	= EvtExInterview (ExInterview t s fr to (cs++[c]))
+
+
+
+
+--registerStudent :: Event -> Student -> Date -> Maybe Event
+
+
+
+
+
