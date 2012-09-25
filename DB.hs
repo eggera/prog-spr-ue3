@@ -11,13 +11,12 @@ module DB where
 
 import List
 
-import Course
 import Event
 import Constraint
 import Utilities
 
 
-data DB = DB { courses :: [Course] }
+data DB = DB { courses :: [String] }
 			deriving (Read,Show)
 
 
@@ -32,31 +31,11 @@ new = DB []
 
 addCourse :: DB -> Title -> DB
 addCourse _ [] 	= error "No title specified"
-addCourse (DB courses) title
-			| duplicate == True 	= error "Duplicate course"
-			| otherwise				= DB (courses ++ [newCourse])
+addCourse (DB courses) course
+			| sameTitles /= []		= error "Duplicate course"
+			| otherwise				= DB (courses ++ [course])
 				where
-					duplicate = courseExists title courses
-					newCourse = Course.new title
+					sameTitles = filter (== course) courses
 
 
 
-
--- ****** HELPER *******
-
--- Checks if a course with a given title already exists
-
-courseExists :: Title -> [Course] -> Bool
-courseExists [] 	_		= error "No title specified"
-courseExists title [] 		= False
-courseExists title ((Course t _ _):cs)
-			| title == t 	= True
-			| otherwise		= courseExists title cs
-
-
-
--- Gets the course related to the given title (which is unique)
-
---getCourse :: Title -> [Course] -> Maybe Course
---getCourse [] = Nothing
---getCourse title cs = 
