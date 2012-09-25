@@ -34,7 +34,7 @@ addCourse :: DB -> Title -> DB
 addCourse _ [] 	= error "No title specified"
 addCourse (DB courses) title
 			| duplicate == True 	= error "Duplicate course"
-			| otherwise				= DB (newCourse:courses)
+			| otherwise				= DB (courses ++ [newCourse])
 				where
 					duplicate = courseExists title courses
 					newCourse = Course.new title
