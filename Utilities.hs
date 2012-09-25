@@ -10,7 +10,6 @@ import Data.Time
 
 
 type Title 		= String
-type Student 	= String
 type Limit		= Integer
 
 
