@@ -3,7 +3,6 @@
 {-# LANGUAGE StandaloneDeriving     #-}
 {-# LANGUAGE FlexibleInstances      #-}
 
-
 module Constraint where
 
 import ReadPUtils
@@ -21,10 +20,11 @@ import Control.Applicative
 -- *********************************************************************************************************************
 -- *********************************************************************************************************************
 
-data Db = Db {
+data DB = DB {
 	students :: [Student],
 	events   :: [Event]
 }
+	deriving (Read,Show)
 
 type Student = String
 
@@ -32,6 +32,19 @@ data Event = Course      { title :: Title, regStudents :: [Student], from, to ::
            | Exam        { title :: Title, regStudents :: [Student], from, to :: Date, constraints :: [Constraint], course :: String }
            | ExInterview { title :: Title, regStudents :: [Student], from, to :: Date, constraints :: [Constraint], course :: String }
 	deriving (Read,Show)
+
+-- ***** db accessors/mutators
+
+-- Creates an empty db
+new :: DB
+new = DB [] []
+
+
+-- Adds a new Event/Student to the db
+addStudent db s = db { students = s:students db }
+addEvent   db e = db { events   = e:events   db }
+
+-- ***** event accessors/mutators
 
 isCourse Course{..} = True
 isCourse _          = False
@@ -48,6 +61,21 @@ evtCourse evt        = Just (course evt)
 getEventsForStudent db s = filter (\e -> elem s (regStudents e)) (events db)
 getStudentsForEvent db e = regStudents e
 
+newCourseEvt :: Title -> Date -> Date -> [Constraint] -> Event
+newCourseEvt []    _    _  _  = error "No title specified"
+newCourseEvt title from to cs = Course title [] from to cs
+
+newExamEvt :: Title -> String -> Date -> Date -> [Constraint] -> Event
+newExamEvt []    _      _    _  _  = error "No title specified"
+newExamEvt title course from to cs = Exam title [] from to cs course 
+
+newExInterviewEvt :: Title -> String -> Date -> Date -> [Constraint] -> Event
+newExInterviewEvt []    _      _    _  _  = error "No title specified"
+newExInterviewEvt title course from to cs = ExInterview title [] from to cs course 
+
+addConstraint :: Event -> Constraint -> Event
+addConstraint e c = e { constraints = c:constraints e }
+
 -- *********************************************************************************************************************
 -- *********************************************************************************************************************
 -- ***** DATABASE CONSTRAINTS                                                                                      *****
@@ -57,7 +85,7 @@ getStudentsForEvent db e = regStudents e
 -- ^ check if a student fulfills a constraint.
 --   returns False iff constraint is violated and db action should not be allowed
 
-checkConstraint :: Constraint -> Student -> Db -> Bool
+checkConstraint :: Constraint -> Student -> DB -> Bool
 checkConstraint (Constraint All  q)        student db = error "TODO"
 checkConstraint (Constraint Some q)        student db = error "TODO"
 checkConstraint (Constraint (Exactly n) q) student db = error "TODO"
@@ -86,7 +114,7 @@ data Quantor = All
 
 -- ***** EVALUATING QUERIES ********************************************************************************************
 
-eval :: Query a -> Db -> [a]
+eval :: Query a -> DB -> [a]
 eval (Query s fs m) db = execMapping m db . execFilters fs . execSelect s $ db
 
 -- ***** INTERNALS *****************************************************************************************************
@@ -118,7 +146,7 @@ data Mapping a b where
 
 -- ** EVALUATING QUERIES
 
-execSelect :: Selector a -> Db -> [a]
+execSelect :: Selector a -> DB -> [a]
 execSelect  Students           = students
 execSelect  Events             = events
 
@@ -133,7 +161,7 @@ execFilter  (Student_NameEq n) = filter (n==)
 execFilter  (Event_NameEq   n) = filter (\e -> title e     == n)
 execFilter  (Event_CourseEq c) = filter (\e -> evtCourse e == Just c)
 
-execMapping :: Mapping a b -> Db -> [a] -> [b]
+execMapping :: Mapping a b -> DB -> [a] -> [b]
 execMapping Id                 db = id
 execMapping EventsForStudents  db = concatMap (getEventsForStudent db)
 execMapping StudentsForEvents  db = concatMap (getStudentsForEvent db)
