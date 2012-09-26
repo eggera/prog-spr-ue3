@@ -1,22 +1,25 @@
 module ReadPUtils(
 r, r_eof,
-
-	Text.Read.Read, ReadPrec,
-	readPrec, 
-	prec, step,
-
-	parens, (+++), (<++), choice, lchoice, option, reset, between, 
+	-- our own parser combinators
+	keyword, keywords, operator, symbol, char, skipSpaces, eof,
 
 	many, many1, 
 	sepBy, sepBy1,
 
-	keyword, keywords, operator, symbol, char, skipSpaces, eof
+	parens, optionalParens,
+
+	-- export parser combinators from Text.Read
+	Text.Read.Read, ReadPrec,
+	readPrec, 
+	prec, step,
+
+	(+++), (<++), choice, option, reset, between
 ) where
 
-import Text.Read
+import Text.Read hiding (parens)
 import Text.Read.Lex
---import Text.ParserCombinators.ReadPrec
-import qualified Text.ParserCombinators.ReadP as ReadP
+
+import qualified Text.Read
 
 import Data.Char
 
@@ -27,86 +30,99 @@ instance Applicative ReadPrec where
 	pure  = return
 	(<*>) = ap
 
-r p str = do
-	ls <- return (readPrec_to_S (p <* eof) 0 str)
-	putStrLn (show (length ls) ++ " result(s):")
-	mapM_ (\(a,b) -> putStr ("  " ++ show a ++ "\t") >> print b) ls
+-- ***** USEFUL PARSERS AND PARSER COMBINATORS *************************************************************************
 
-r_eof p str = do
-	ls <- return (readPrec_to_S p 0 str)
-	putStrLn (show (length ls) ++ " result(s):")
-	mapM_ (\(a,b) -> putStrLn ("  " ++ show a)) ls
-
-foo = sepBy1 symbol (char '|') 
-
+-- ^ checks if the next char in input is equal to a given char (skips leading whitespace)
 char c = do
 	a <- skipSpaces >> get
 	guard (a == c)
 	return a
 
+-- ^ checks if the next word or string litereal in input is equal to a given string (skips leading whitespace)
 keyword kw = do
 	sym <- symbol
 	guard (map toLower sym == map toLower kw)
 	return sym
 
+-- ^ checks if the next words/strings in input are equal to a given phrase (skips leading whitespace)
 keywords = mapM keyword
 
-operator = do
+-- ^ checks if the next operator symbol in input is equal to a given string (skips leading whitespace)
+operator op = do
 	token <- lexP
-	case token of
-		(Punc   sym) -> return sym
-		_            -> fail "Not an operator"
+	guard (token == Punc op)
+	return token
 
+-- ^ parses a word, string literal or char literal
 symbol = do
 	token <- lexP
 	case token of
 		(Char   c)   -> return [c]
 		(String str) -> return str
 		(Ident  sym) -> return sym
---		(Punc   sym) -> return sym
 		_            -> fail "Not a symbol"
 
-many :: ReadPrec a -> ReadPrec [a]
 -- ^ Parses zero or more occurrences of the given parser.
+many :: ReadPrec a -> ReadPrec [a]
 many p = return [] +++ many1 p
 
-many1 :: ReadPrec a -> ReadPrec [a]
 -- ^ Parses one or more occurrences of the given parser.
+many1 :: ReadPrec a -> ReadPrec [a]
 many1 p = liftM2 (:) p (many p)
 
-sepBy :: ReadPrec a -> ReadPrec sep -> ReadPrec [a]
 -- ^ @sepBy p sep@ parses zero or more occurrences of @p@, separated by @sep@.
 --   Returns a list of values returned by @p@.
+sepBy :: ReadPrec a -> ReadPrec sep -> ReadPrec [a]
 sepBy p sep = sepBy1 p sep +++ return []
 
-sepBy1 :: ReadPrec a -> ReadPrec sep -> ReadPrec [a]
 -- ^ @sepBy1 p sep@ parses one or more occurrences of @p@, separated by @sep@.
 --   Returns a list of values returned by @p@.
+sepBy1 :: ReadPrec a -> ReadPrec sep -> ReadPrec [a]
 sepBy1 p sep = liftM2 (:) p (many (sep >> p))
 
-skipSpaces :: ReadPrec ()
 -- ^ Skips all whitespace.
-skipSpaces =
-  do s <- look
-     skip s
- where
-  skip (c:s) | isSpace c = do _ <- get; skip s
-  skip _                 = do return ()
+skipSpaces :: ReadPrec ()
+skipSpaces = look >>= skip
+	where
+		skip (c:s) | isSpace c = do _ <- get; skip s
+		skip _                 = do return ()
 
+-- ^ succeeds if input is empty, fails otherwise
 eof = do
 	cs <- look
 	case cs of
 		[] -> return ()
 		_  -> fail ""
 
--- * left biased choice, returns first success 
-lchoice ps = foldr (<++) pfail ps
+-- ^ Parses what given parser does but enclosed in parentheses
+parens         p = between (char '(') (char ')') p
 
+-- ^ Parses what given parser does but optionally enclosed in parentheses
+optionalParens p = Text.Read.parens              p
+
+-- ^ tries to parse with parser, if it fails returns a given default value
+option :: a -> ReadPrec a -> ReadPrec a
 option x p = p +++ return x
 
+-- ^ parses what a given parser parser parses, 
+--   enclosed in what the 'open' and 'close' parsers parse
 between open close p = do
 	open
 	a <- p
 	close 
 	return a
+
+-- ***** TESTING PARSERS ***********************************************************************************************
+
+-- ^ try parser and print all results
+r p str = do
+	ls <- return (readPrec_to_S (p <* eof) 0 str)
+	putStrLn (show (length ls) ++ " result(s):")
+	mapM_ (\(a,b) -> putStr ("  " ++ show a ++ "\t") >> print b) ls
+
+-- ^ try parser followed by EOF parser, and print all results
+r_eof p str = do
+	ls <- return (readPrec_to_S p 0 str)
+	putStrLn (show (length ls) ++ " result(s):")
+	mapM_ (\(a,b) -> putStrLn ("  " ++ show a)) ls
 
